@@ -1,4 +1,75 @@
-import numpy as np
+imporimport numpy as np
+import pandas as pd
+from keras.models import Sequential
+from keras.layers import Dense, Dropout
+from keras.optimizers import Adam
+from keras.callbacks import EarlyStopping
+import xgboost as xgb
+import CoreFunctions as cf
+import os
+from binance.client import Client
+
+# Load the data and create features/targets
+candles = pd.read_csv('data/Binance_BTCUSDT_d.csv')
+x = cf.FeatureCreation(candles)
+y = cf.CreateTargets(candles, 1)
+y = y[94:]
+x = x[94:len(candles) - 1]
+
+# Create spiking neural network model
+# Set up the spiking neural network model architecture
+num_inputs = x.shape[1]
+num_hidden = 100
+num_outputs = 1
+spike_rates = np.zeros((x.shape[0], num_inputs))
+
+model_spiking = Sequential()
+model_spiking.add(Dense(num_hidden, activation='relu', input_dim=num_inputs))
+model_spiking.add(Dense(num_outputs, activation='sigmoid'))
+
+# Compile the spiking neural network model
+optimizer_spiking = Adam(learning_rate=0.001)
+model_spiking.compile(optimizer=optimizer_spiking, loss='binary_crossentropy', metrics=['accuracy'])
+
+# Train the spiking neural network model
+es_spiking = EarlyStopping(monitor='val_loss', mode='min', patience=5, verbose=1)
+history_spiking = model_spiking.fit(spike_rates, y, epochs=50, batch_size=128, validation_split=0.2, callbacks=[es_spiking])
+
+# Load API keys from environment variables
+api_key = os.getenv('')
+api_secret = os.getenv('')
+
+# Create Binance client object
+client = Client(api_key, api_secret)
+
+# Load the data and create features/targets
+candles = client.get_historical_klines("BTCUSDT", Client.KLINE_INTERVAL_1HOUR, "12 Dec, 2017", "15 May, 2023")
+x = cf.FeatureCreation(candles)
+y = cf.CreateTargets(candles, 1)
+y = y[94:]
+x = x[94:len(candles) - 1]
+
+# Create Keras model
+model_keras = Sequential()
+model_keras.add(Dense(32, activation='relu', input_dim=x.shape[1]))
+model_keras.add(Dropout(0.5))
+model_keras.add(Dense(16, activation='relu'))
+model_keras.add(Dropout(0.5))
+model_keras.add(Dense(1, activation='sigmoid'))
+
+optimizer_keras = Adam(learning_rate=0.001)
+model_keras.compile(optimizer=optimizer_keras, loss='binary_crossentropy', metrics=['accuracy'])
+
+# Train Keras model
+es_keras = EarlyStopping(monitor='val_loss', mode='min', patience=5, verbose=1)
+history_keras = model_keras.fit(x, y, epochs=50, batch_size=128, validation_split=0.2, callbacks=[es_keras])
+
+# Create XGBoost model
+model_xgb = xgb.XGBClassifier()
+model_xgb.fit(x, y)
+
+# Combine Keras, XGBoost, and sp
+t numpy as np
 import pandas as pd
 
 from keras.models import Sequential
